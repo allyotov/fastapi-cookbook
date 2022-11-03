@@ -1,4 +1,5 @@
-from sqlalchemy import Table, Column, ForeignKey, String, Integer, relationship
+from sqlalchemy import Table, Column, ForeignKey, String, Integer
+from sqlalchemy.orm import relationship
 
 from database import Base
 
@@ -22,6 +23,6 @@ class Ingredient(Base):
 association_table = Table(
     "association_table",
     Base.metadata,
-    Column("recipe_id", ForeignKey("recipe_table"),
-    Column("ingredient_id", ForeignKey("ingredient_table")))
+    Column("recipe_id", ForeignKey("recipe_table.id"),
+    Column("ingredient_id", ForeignKey("ingredient_table.id")))
 )
