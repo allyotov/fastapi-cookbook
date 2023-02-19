@@ -21,7 +21,7 @@ RECIPES_CSV = DATA_SOURCE_PATH / 'recipes.csv'
 
 async def populate_db():
     try:
-        with open(INGREDIENTS_CSV) as ingredients_file:
+        with open(INGREDIENTS_CSV, encoding="utf8") as ingredients_file:
             reader = csv.reader(ingredients_file, delimiter=';')
             added_ingredients = {}
             for num, row in enumerate(reader, start=1):
@@ -30,7 +30,7 @@ async def populate_db():
                 added_ingredients[num] = new_ingredient
 
         added_recipes = []
-        with open(RECIPES_CSV) as recipes_file:
+        with open(RECIPES_CSV, encoding="utf8") as recipes_file:
             reader = csv.reader(recipes_file, delimiter=';')
             for name, time, description, ingredients_ids_str in reader:
                 logger.debug('ingredient: %s %s %s %s' % (name, time, description, ingredients_ids_str))
