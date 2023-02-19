@@ -18,10 +18,17 @@ class RecipeBrief(BaseModel):
 class RecipeDetails(BaseModel):
     dish_name: str
     cooking_time: int
-    ingredients = List[str]
-    description = str
+    ingredients: List[str]
+    description: str
 
 
 class Ingredient(BaseModel):
     name: str
     recipes: List[int]
+
+
+class RecipeOut(RecipeDetails):
+    id: int
+    
+    class Config:
+        orm_mode = True
