@@ -1,16 +1,18 @@
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 import logging
-from fastapi import FastAPI
+from logging.config import dictConfig
+from fastapi import FastAPI, HTTPException
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
+from config import LogConfig
 
 import models
 import schemas
 from database import engine, session
 
+dictConfig(LogConfig().dict())
+logger = logging.getLogger('cookbook_api')
 
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
 
 app = FastAPI()
 
@@ -29,23 +31,44 @@ async def shutdown():
     await engine.dispose()
 
 
-@app.get("/recipe/{recipe_id}", response_model=List[schemas.RecipeOut])
-async def recipes(recipe_id: int) -> List[schemas.RecipeOut]:
-    result = await session.execute(select(models.Recipe).where(models.Recipe.id == recipe_id).options(selectinload(models.Recipe.ingredients)))
-    recipes = result.scalars().all()
-    return [
-        schemas.RecipeOut(
-        id=recipe_id,
-        dish_name=recipe.dish_name,
-        cooking_time=recipe.cooking_time,
-        ingredients=[ingredient.name for ingredient in recipe.ingredients],
-        description=recipe.description) for recipe in recipes]
+@app.get("/recipe/{recipe_id}", response_model=schemas.RecipeOut)
+async def recipes(recipe_id: int) -> Optional[schemas.RecipeOut]:
+    """
+    Retrieve a recipe by ID.
+
+    Arguments:
+    - `recipe_id`: The ID of the recipe to retrieve.
+
+    Returns:
+    - A dictionary containing the retrieved recipe or a 404 response if the item is not found.
+    """
+    async with session.begin():
+        result = await session.execute(select(models.Recipe).where(models.Recipe.id == recipe_id).options(selectinload(models.Recipe.ingredients)))
+        recipe = result.scalar_one_or_none()
+        if recipe is None:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+        recipe.views_number += 1
+        await session.commit()
+        return schemas.RecipeOut(
+            id=recipe_id,
+            dish_name=recipe.dish_name,
+            cooking_time=recipe.cooking_time,
+            ingredients=[ingredient.name for ingredient in recipe.ingredients],
+            description=recipe.description,
+        )
 
 
 @app.get("/titles", response_model=List[schemas.RecipeBrief])
 async def get_titles() -> List[schemas.RecipeBrief]:
-    result = await session.execute(select(models.Recipe).order_by(models.Recipe.views_number, models.Recipe.cooking_time, reversed=True))
+    """
+    Retrieve a list of recipe titles with their views number and cooking time.
+
+    Returns:
+    - A list of dictionaries of recipe titles.
+    """
+    result = await session.execute(select(models.Recipe).order_by(models.Recipe.views_number.desc(), models.Recipe.cooking_time.desc()))
     titles = result.scalars().all()
+    logger.debug(titles)
     return [
         schemas.RecipeBrief(
         dish_name=title.dish_name,
