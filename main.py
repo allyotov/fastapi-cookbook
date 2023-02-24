@@ -1,20 +1,28 @@
 from typing import Tuple, List, Optional
 import logging
 from logging.config import dictConfig
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from config import LogConfig
 
 import models
 import schemas
-from database import engine, session
+from database import engine, async_session
 
 dictConfig(LogConfig().dict())
 logger = logging.getLogger('cookbook_api')
 
 
 app = FastAPI()
+
+
+def get_db():
+    db = async_session()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 @app.on_event("startup")
@@ -25,14 +33,14 @@ async def startup():
 
 
 @app.on_event("shutdown")
-async def shutdown():
+async def shutdown(session = Depends(get_db)):
     logger.debug('shutdown')
     await session.close()
     await engine.dispose()
 
 
 @app.get("/recipe/{recipe_id}", response_model=schemas.RecipeOut)
-async def recipes(recipe_id: int) -> Optional[schemas.RecipeOut]:
+async def recipes(recipe_id: int, session = Depends(get_db)) -> Optional[schemas.RecipeOut]:
     """
     Retrieve a recipe by ID.
 
@@ -59,7 +67,7 @@ async def recipes(recipe_id: int) -> Optional[schemas.RecipeOut]:
 
 
 @app.get("/titles", response_model=List[schemas.RecipeBrief])
-async def get_titles() -> List[schemas.RecipeBrief]:
+async def get_titles(session = Depends(get_db)) -> List[schemas.RecipeBrief]:
     """
     Retrieve a list of recipe titles with their views number and cooking time.
 
