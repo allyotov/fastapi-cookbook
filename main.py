@@ -17,12 +17,9 @@ logger = logging.getLogger('cookbook_api')
 app = FastAPI()
 
 
-def get_db():
-    db = async_session()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_db():
+    async with async_session() as session:
+        yield session
 
 
 @app.on_event("startup")
